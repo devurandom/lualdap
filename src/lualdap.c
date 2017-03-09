@@ -385,7 +385,7 @@ static int table2strarray (lua_State *L, int tab, char *array[], int limit) {
 			}
 		}
 		array[n] = NULL;
-	} else 
+	} else
 		return luaL_error (L, LUALDAP_PREFIX"bad argument #%d (table or string expected, got %s)", tab, lua_typename (L, lua_type (L, tab)));
 	return 0;
 }
@@ -505,19 +505,15 @@ static int lualdap_bind_simple (lua_State *L) {
 	const char *password = luaL_checkstring (L, 3);
 	int err;
 #if defined(LDAP_API_FEATURE_X_OPENLDAP) && LDAP_API_FEATURE_X_OPENLDAP >= 20300
-	struct berval cred = { 0, NULL };
-	cred.bv_len = strlen(password);
-	cred.bv_val = malloc(cred.bv_len+1);
-	strcpy(cred.bv_val, password);
-	err = ldap_sasl_bind_s (conn->ld, who, LDAP_SASL_SIMPLE, &cred, NULL, NULL, NULL);
-	free(cred.bv_val);
-	memset(&cred, 0, sizeof(cred));
+	struct berval *cred = ber_bvstrdup(password);
+	err = ldap_sasl_bind_s (conn->ld, who, LDAP_SASL_SIMPLE, cred, NULL, NULL, NULL);
+	ber_bvfree(cred);
 #else
 	err = ldap_simple_bind_s (conn->ld, who, password);
 #endif
 	if (err != LDAP_SUCCESS)
 		return faildirect (L, ldap_err2string (err));
-	
+
 	lua_pushboolean (L, 1);
 	return 1;
 }
@@ -984,7 +980,7 @@ static int lualdap_initialize (lua_State *L) {
 	err = ldap_initialize (&conn->ld, uri);
 	if (err != LDAP_SUCCESS)
 		return faildirect(L, ldap_err2string(err));
-	
+
 	/* Set protocol version */
 	conn->version = LDAP_VERSION3;
 	if (ldap_set_option (conn->ld, LDAP_OPT_PROTOCOL_VERSION, &conn->version)
