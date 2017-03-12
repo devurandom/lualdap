@@ -1002,7 +1002,7 @@ static int lualdap_initialize (lua_State *L) {
 static int lualdap_open_simple (lua_State *L) {
 	ldap_pchar_t host = (ldap_pchar_t) luaL_checkstring (L, 1);
 	ldap_pchar_t who = (ldap_pchar_t) luaL_optstring (L, 2, NULL);
-	const char *password = luaL_optstring (L, 3, NULL);
+	const char *password = luaL_optstring (L, 3, "");
 	int use_tls = lua_toboolean (L, 4);
 	conn_data *conn = (conn_data *)lua_newuserdata (L, sizeof(conn_data));
 #if defined(LDAP_API_FEATURE_X_OPENLDAP) && LDAP_API_FEATURE_X_OPENLDAP >= 20300
