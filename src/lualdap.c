@@ -807,8 +807,8 @@ static void create_search (lua_State *L, int conn_index, int msgid) {
 /*
 ** Fill in the attrs array, according to the attrs parameter.
 */
-static int get_attrs_param (lua_State *L, char *attrs[]) {
-	int type = lua_getfield(L, 2, "attrs");
+static int get_attrs_param (lua_State *L, int idx, char *attrs[]) {
+	int type = lua_getfield(L, idx, "attrs");
 	if (type == LUA_TSTRING) {
 		attrs[0] = (char *)lua_tostring (L, -1);
 		attrs[1] = NULL;
@@ -838,7 +838,7 @@ static int lualdap_search (lua_State *L) {
 
 	if (!lua_istable (L, 2))
 		return luaL_error (L, LUALDAP_PREFIX"no search specification");
-	if (!get_attrs_param (L, attrs))
+	if (!get_attrs_param (L, 2, attrs))
 		return 2;
 	/* get other parameters */
 	attrsonly = booltabparam (L, 2, "attrsonly", 0);
