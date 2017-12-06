@@ -140,20 +140,11 @@ static int option_error (lua_State *L, const char *name, const char *type) {
 
 
 /*
-** Get the field called name of the table at position 2.
-*/
-static void strgettable (lua_State *L, int idx, const char *name) {
-	lua_pushstring (L, name);
-	lua_gettable (L, idx);
-}
-
-
-/*
 ** Get the field named name as a string.
 ** The table MUST be at position 2.
 */
 static const char *strtabparam (lua_State *L, int idx, const char *name, char *def) {
-	strgettable (L, idx, name);
+	lua_getfield(L, idx, name);
 	if (lua_isnil (L, -1))
 		return def;
 	else if (lua_isstring (L, -1))
@@ -170,7 +161,7 @@ static const char *strtabparam (lua_State *L, int idx, const char *name, char *d
 ** The table MUST be at position 2.
 */
 static long longtabparam (lua_State *L, int idx, const char *name, int def) {
-	strgettable (L, idx, name);
+	lua_getfield(L, idx, name);
 	if (lua_isnil (L, -1))
 		return def;
 	else if (lua_isnumber (L, -1))
@@ -185,7 +176,7 @@ static long longtabparam (lua_State *L, int idx, const char *name, int def) {
 ** The table MUST be at position 2.
 */
 static double numbertabparam (lua_State *L, int idx, const char *name, double def) {
-	strgettable (L, idx, name);
+	lua_getfield(L, idx, name);
 	if (lua_isnil (L, -1))
 		return def;
 	else if (lua_isnumber (L, -1))
@@ -200,7 +191,7 @@ static double numbertabparam (lua_State *L, int idx, const char *name, double de
 ** The table MUST be at position 2.
 */
 static int booltabparam (lua_State *L, int idx, const char *name, int def) {
-	strgettable (L, idx, name);
+	lua_getfield(L, idx, name);
 	if (lua_isnil (L, -1))
 		return def;
 	else if (lua_isboolean (L, -1))
