@@ -462,6 +462,19 @@ static int lualdap_close (lua_State *L) {
 	return 1;
 }
 
+/*
+** Get file descriptor for polling
+** @param #1 LDAP connection.
+*/
+static int lualdap_pollfd (lua_State *L) {
+	int fd;
+	conn_data *conn = getconnection (L, 1);
+	int err = ldap_get_option(conn->ld, LDAP_OPT_DESC, &fd);
+	if (err != LDAP_OPT_SUCCESS)
+		return faildirect(L, ldap_err2string (err));
+	lua_pushinteger(L, fd);
+	return 1;
+}
 
 /*
 ** Bind to the directory.
@@ -892,6 +905,7 @@ static int lualdap_search_tostring (lua_State *L) {
 static int lualdap_createmeta (lua_State *L) {
 	const luaL_Reg methods[] = {
 		{"close", lualdap_close},
+		{"pollfd", lualdap_pollfd},
 		{"bind_simple", lualdap_bind_simple},
 		{"add", lualdap_add},
 		{"compare", lualdap_compare},
