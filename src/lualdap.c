@@ -348,36 +348,6 @@ static void A_lastattr (lua_State *L, attrs_data *a) {
 
 
 /*
-** Copy a string or a table of strings from Lua to a NULL-terminated array
-** of C-strings.
-*/
-static int table2strarray (lua_State *L, int tab, char *array[], int limit) {
-	if (lua_isstring (L, tab)) {
-		if (limit < 2)
-			return luaL_error (L, LUALDAP_PREFIX"too many arguments");
-		array[0] = (char *)lua_tostring (L, tab);
-		array[1] = NULL;
-	} else if (lua_istable (L, tab)) {
-		int i;
-		int n = lua_rawlen (L, tab);
-		if (limit < (n+1))
-			return luaL_error (L, LUALDAP_PREFIX"too many arguments");
-		for (i = 0; i < n; i++) {
-			lua_rawgeti (L, tab, i+1); /* push table element */
-			if (lua_isstring (L, -1))
-				array[i] = (char *)lua_tostring (L, -1);
-			else {
-				return luaL_error (L, LUALDAP_PREFIX"invalid value #%d", i+1);
-			}
-		}
-		array[n] = NULL;
-	} else
-		return luaL_error (L, LUALDAP_PREFIX"bad argument #%d (table or string expected, got %s)", tab, lua_typename (L, lua_type (L, tab)));
-	return 0;
-}
-
-
-/*
 ** Fill in the struct timeval, according to the timeout parameter.
 */
 static struct timeval *get_timeout_param (lua_State *L, int idx, struct timeval *st) {
@@ -814,9 +784,22 @@ static int get_attrs_param (lua_State *L, int idx, char *attrs[]) {
 		attrs[1] = NULL;
 	} else if (type != LUA_TTABLE)
 		attrs[0] = NULL;
-	else
-		if (table2strarray (L, lua_gettop (L), attrs, LUALDAP_MAX_ATTRS))
-			return 0;
+	else {
+		int i;
+		int n = lua_rawlen(L, -1);
+		if (LUALDAP_MAX_ATTRS < (n+1))
+			return luaL_error (L, LUALDAP_PREFIX"too many arguments");
+		luaL_checkstack(L, n, NULL);
+		for (i = 0; i < n; i++) {
+			lua_rawgeti (L, -1, i+1); /* push table element */
+			if (lua_isstring (L, -1))
+				attrs[i] = (char *)lua_tostring (L, -1);
+			else {
+				return luaL_error (L, LUALDAP_PREFIX"invalid value #%d", i+1);
+			}
+		}
+		attrs[n] = NULL;
+	}
 	return 1;
 }
 
