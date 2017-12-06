@@ -1009,12 +1009,9 @@ static int lualdap_open_simple (lua_State *L) {
 	if (strstr(host, "://") != NULL) {
 		err = ldap_initialize(&conn->ld, host);
 	} else {
-		char *host_with_schema = malloc(strlen(host) + 8);
-		strcpy(host_with_schema, "ldap://");
-		strcat(host_with_schema, host);
+		const char *host_with_schema = lua_pushfstring(L, "ldap://%s", host);
 		err = ldap_initialize(&conn->ld, host_with_schema);
-		free(host_with_schema);
-		host_with_schema = NULL;
+		lua_pop(L, 1);
 	}
 	if (err != LDAP_SUCCESS) {
 #else
