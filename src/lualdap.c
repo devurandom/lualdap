@@ -25,7 +25,6 @@
 
 #include "compat-5.3.h"
 
-
 #ifdef WINLDAPAPI
 #define timeval l_timeval
 typedef ULONG ldap_int_t;
@@ -144,10 +143,10 @@ static int option_error (lua_State *L, const char *name, const char *type) {
 ** The table MUST be at position 2.
 */
 static const char *strtabparam (lua_State *L, int idx, const char *name, char *def) {
-	lua_getfield(L, idx, name);
-	if (lua_isnil (L, -1))
+	int type = lua_getfield(L, idx, name);
+	if (type == LUA_TNIL)
 		return def;
-	else if (lua_isstring (L, -1))
+	else if (type == LUA_TSTRING)
 		return lua_tostring (L, -1);
 	else {
 		option_error (L, name, "string");
@@ -161,10 +160,10 @@ static const char *strtabparam (lua_State *L, int idx, const char *name, char *d
 ** The table MUST be at position 2.
 */
 static long longtabparam (lua_State *L, int idx, const char *name, int def) {
-	lua_getfield(L, idx, name);
-	if (lua_isnil (L, -1))
+	int type = lua_getfield(L, idx, name);
+	if (type == LUA_TNIL)
 		return def;
-	else if (lua_isnumber (L, -1))
+	else if (type == LUA_TNUMBER)
 		return (long)lua_tonumber (L, -1);
 	else
 		return option_error (L, name, "number");
@@ -176,10 +175,10 @@ static long longtabparam (lua_State *L, int idx, const char *name, int def) {
 ** The table MUST be at position 2.
 */
 static double numbertabparam (lua_State *L, int idx, const char *name, double def) {
-	lua_getfield(L, idx, name);
-	if (lua_isnil (L, -1))
+	int type = lua_getfield(L, idx, name);
+	if (type == LUA_TNIL)
 		return def;
-	else if (lua_isnumber (L, -1))
+	else if (type == LUA_TNUMBER)
 		return lua_tonumber (L, -1);
 	else
 		return option_error (L, name, "number");
@@ -191,10 +190,10 @@ static double numbertabparam (lua_State *L, int idx, const char *name, double de
 ** The table MUST be at position 2.
 */
 static int booltabparam (lua_State *L, int idx, const char *name, int def) {
-	lua_getfield(L, idx, name);
-	if (lua_isnil (L, -1))
+	int type = lua_getfield(L, idx, name);
+	if (type == LUA_TNIL)
 		return def;
-	else if (lua_isboolean (L, -1))
+	else if (type == LUA_TBOOLEAN)
 		return lua_toboolean (L, -1);
 	else
 		return option_error (L, name, "boolean");
