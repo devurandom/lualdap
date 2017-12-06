@@ -12,3 +12,4 @@ Significant contributions were made by:
  * [John Regan](https://github.com/jprjr) - initial Rockspec and apply [Debian bugfix](https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=722175)
  * [Brett Delle Grazie](https://github.com/bdellegrazie) - application of [Prosody](http://prosody.im) [patch](http://prosody.im/patches/lualdap.patch), documentation updates
  * [Jakub Jirutka](https://github.com/jirutka) - Segfault and Iterator fixes, Travis CI configuration
+ * [Daurnimator](https://github.com/daurnimator) - Cleanup
