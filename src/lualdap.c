@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 
 #ifdef WIN32
 #include <Winsock2.h>
@@ -351,14 +352,25 @@ static void A_lastattr (lua_State *L, attrs_data *a) {
 ** Fill in the struct timeval, according to the timeout parameter.
 */
 static struct timeval *get_timeout_param (lua_State *L, int idx, struct timeval *st) {
-	double t;
+	double t, s, us;
 	if (!lua_istable(L, idx))
 		return NULL;
 	t = numbertabparam (L, idx, "timeout", -1);
 	if(t < 0)
 		return NULL; /* No timeout, block */
-	st->tv_sec = (long)t;
-	st->tv_usec = (long)(1000000 * (t - st->tv_sec));
+	us = modf(t, &s);
+	us = ceil(us * 1000000);
+	if (us >= 1000000) {
+		s++;
+		us = 0;
+	}
+	if (s >= (unsigned long)LONG_MAX+1) {
+		st->tv_sec = LONG_MAX;
+		st->tv_usec = 0;
+	} else {
+		st->tv_sec = s;
+		st->tv_usec = us;
+	}
 	return st;
 }
 

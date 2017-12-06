@@ -38,7 +38,7 @@ OBJS= src/lualdap.o $(COMPAT_O)
 LIBNAME=$(T).so
 
 src/$(LIBNAME): $(OBJS)
-	$(CC) $(CFLAGS) $(LIBFLAG) -o src/$(LIBNAME) $(OBJS) -L$(LDAP_LIBDIR) $(LDAP_LIB) -L$(LBER_LIBDIR) $(LBER_LIB)
+	$(CC) $(CFLAGS) $(LIBFLAG) -o src/$(LIBNAME) $(OBJS) -L$(LDAP_LIBDIR) $(LDAP_LIB) -L$(LBER_LIBDIR) $(LBER_LIB) -lm
 
 install: src/$(LIBNAME)
 	$(INSTALL) src/$(LIBNAME) $(DESTDIR)$(INST_LIBDIR)
