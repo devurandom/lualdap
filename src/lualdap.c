@@ -777,7 +777,7 @@ static void create_search (lua_State *L, int conn_index, int msgid) {
 /*
 ** Fill in the attrs array, according to the attrs parameter.
 */
-static int get_attrs_param (lua_State *L, int idx, char *attrs[]) {
+static void get_attrs_param (lua_State *L, int idx, char *attrs[]) {
 	int type = lua_getfield(L, idx, "attrs");
 	if (type == LUA_TSTRING) {
 		attrs[0] = (char *)lua_tostring (L, -1);
@@ -788,19 +788,18 @@ static int get_attrs_param (lua_State *L, int idx, char *attrs[]) {
 		int i;
 		int n = lua_rawlen(L, -1);
 		if (LUALDAP_MAX_ATTRS < (n+1))
-			return luaL_error (L, LUALDAP_PREFIX"too many arguments");
+			luaL_error (L, LUALDAP_PREFIX"too many arguments");
 		luaL_checkstack(L, n, NULL);
 		for (i = 0; i < n; i++) {
 			lua_rawgeti (L, -1, i+1); /* push table element */
 			if (lua_isstring (L, -1))
 				attrs[i] = (char *)lua_tostring (L, -1);
 			else {
-				return luaL_error (L, LUALDAP_PREFIX"invalid value #%d", i+1);
+				luaL_error (L, LUALDAP_PREFIX"invalid value #%d", i+1);
 			}
 		}
 		attrs[n] = NULL;
 	}
-	return 1;
 }
 
 
@@ -821,8 +820,7 @@ static int lualdap_search (lua_State *L) {
 
 	if (!lua_istable (L, 2))
 		return luaL_error (L, LUALDAP_PREFIX"no search specification");
-	if (!get_attrs_param (L, 2, attrs))
-		return 2;
+	get_attrs_param (L, 2, attrs);
 	/* get other parameters */
 	attrsonly = booltabparam (L, 2, "attrsonly", 0);
 	base = (ldap_pchar_t) strtabparam (L, 2, "base", NULL);
