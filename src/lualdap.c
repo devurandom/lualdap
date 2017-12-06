@@ -93,10 +93,11 @@ int luaopen_lualdap (lua_State *L);
 /*
 ** Typical error situation.
 */
-static int faildirect (lua_State *L, const char *errmsg) {
+static int faildirect (lua_State *L, const char *errmsg, int err) {
     lua_pushnil (L);
     lua_pushstring (L, errmsg);
-    return 2;
+    lua_pushinteger (L, err);
+    return 3;
 }
 
 
@@ -391,16 +392,16 @@ static int result_message (lua_State *L) {
 	luaL_argcheck (L, conn->ld, 1, LUALDAP_PREFIX"LDAP connection is closed");
 	rc = ldap_result (conn->ld, msgid, LDAP_MSG_ONE, get_timeout_param (L, 1, &timeout), &res);
 	if (rc == 0)
-		return faildirect (L, LUALDAP_PREFIX"result timeout expired");
+		return faildirect (L, LUALDAP_PREFIX"result timeout expired", LDAP_TIMEOUT);
 	else if (rc < 0) {
 		ldap_msgfree (res);
-		return faildirect (L, LUALDAP_PREFIX"result error");
+		return faildirect (L, ldap_err2string (rc), rc);
 	} else {
 		int err, ret = 1;
 		char *mdn, *msg;
 		rc = ldap_parse_result (conn->ld, res, &err, &mdn, &msg, NULL, NULL, 1);
 		if (rc != LDAP_SUCCESS)
-			return faildirect (L, ldap_err2string (rc));
+			return faildirect (L, ldap_err2string (rc), rc);
 		switch (err) {
 			case LDAP_SUCCESS:
 			case LDAP_COMPARE_TRUE:
@@ -434,7 +435,7 @@ static int result_message (lua_State *L) {
 */
 static int create_future (lua_State *L, ldap_int_t rc, int conn, ldap_int_t msgid, int code) {
 	if (rc != LDAP_SUCCESS)
-		return faildirect (L, ldap_err2string (rc));
+		return faildirect (L, ldap_err2string (rc), rc);
 	lua_pushvalue (L, conn); /* push connection as #1 upvalue */
 	lua_pushnumber (L, msgid); /* push msgid as #2 upvalue */
 	lua_pushnumber (L, code); /* push code as #3 upvalue */
@@ -471,7 +472,7 @@ static int lualdap_pollfd (lua_State *L) {
 	conn_data *conn = getconnection (L, 1);
 	int err = ldap_get_option(conn->ld, LDAP_OPT_DESC, &fd);
 	if (err != LDAP_OPT_SUCCESS)
-		return faildirect(L, ldap_err2string (err));
+		return faildirect(L, ldap_err2string (err), err);
 	lua_pushinteger(L, fd);
 	return 1;
 }
@@ -496,7 +497,7 @@ static int lualdap_bind_simple (lua_State *L) {
 	err = ldap_simple_bind_s (conn->ld, who, password);
 #endif
 	if (err != LDAP_SUCCESS)
-		return faildirect (L, ldap_err2string (err));
+		return faildirect (L, ldap_err2string (err), err);
 
 	lua_pushboolean (L, 1);
 	return 1;
@@ -710,9 +711,9 @@ static int next_message (lua_State *L) {
 	conn = (conn_data *)lua_touserdata (L, -1); /* get connection */
 	rc = ldap_result (conn->ld, search->msgid, LDAP_MSG_ONE, get_timeout_param (L, 1, &timeout), &res);
 	if (rc == 0)
-		return faildirect (L, LUALDAP_PREFIX"result timeout expired");
-	else if (rc == -1)
-		return faildirect (L, LUALDAP_PREFIX"result error");
+		return faildirect (L, LUALDAP_PREFIX"result timeout expired", LDAP_TIMEOUT);
+	else if (rc < 0)
+		return faildirect (L, ldap_err2string (rc), rc);
 	else if (rc == LDAP_RES_SEARCH_RESULT) { /* last message => nil */
 		/* close search object to avoid reuse */
 		search_close (L, search);
@@ -970,13 +971,13 @@ static int lualdap_initialize (lua_State *L) {
 	conn->version = 0;
 	err = ldap_initialize (&conn->ld, uri);
 	if (err != LDAP_SUCCESS)
-		return faildirect(L, ldap_err2string(err));
+		return faildirect(L, ldap_err2string(err), err);
 
 	/* Set protocol version */
 	conn->version = LDAP_VERSION3;
-	if (ldap_set_option (conn->ld, LDAP_OPT_PROTOCOL_VERSION, &conn->version)
-		!= LDAP_OPT_SUCCESS)
-		return faildirect(L, LUALDAP_PREFIX"Error setting LDAP version");
+	err = ldap_set_option (conn->ld, LDAP_OPT_PROTOCOL_VERSION, &conn->version);
+	if (err != LDAP_OPT_SUCCESS)
+		return faildirect(L, LUALDAP_PREFIX"Error setting LDAP version", err);
 	ldap_set_option(conn->ld, LDAP_OPT_DEBUG_LEVEL, &lev);
 
 	return 1;
@@ -1015,22 +1016,24 @@ static int lualdap_open_simple (lua_State *L) {
 		free(host_with_schema);
 		host_with_schema = NULL;
 	}
-	if (err != LDAP_SUCCESS)
+	if (err != LDAP_SUCCESS) {
 #else
 	conn->ld = ldap_init (host, LDAP_PORT);
-	if (conn->ld == NULL)
+	if (conn->ld == NULL) {
+		err = LDAP_CONNECT_ERROR;
 #endif
-		return faildirect(L,LUALDAP_PREFIX"Error connecting to server");
+		return faildirect(L, ldap_err2string (err), err);
+	}
 	/* Set protocol version */
 	conn->version = LDAP_VERSION3;
-	if (ldap_set_option (conn->ld, LDAP_OPT_PROTOCOL_VERSION, &conn->version)
-		!= LDAP_OPT_SUCCESS)
-		return faildirect(L, LUALDAP_PREFIX"Error setting LDAP version");
+	err = ldap_set_option (conn->ld, LDAP_OPT_PROTOCOL_VERSION, &conn->version);
+	if (err != LDAP_OPT_SUCCESS)
+		return faildirect(L, LUALDAP_PREFIX"Error setting LDAP version", err);
 	/* Use TLS */
 	if (use_tls) {
 		int rc = ldap_start_tls_s (conn->ld, NULL, NULL);
 		if (rc != LDAP_SUCCESS)
-			return faildirect (L, ldap_err2string (rc));
+			return faildirect (L, ldap_err2string (rc), rc);
 	}
 	/* Bind to a server */
 #if defined(LDAP_API_FEATURE_X_OPENLDAP) && LDAP_API_FEATURE_X_OPENLDAP >= 20300
@@ -1041,7 +1044,7 @@ static int lualdap_open_simple (lua_State *L) {
 	err = ldap_bind_s (conn->ld, who, password, LDAP_AUTH_SIMPLE);
 #endif
 	if (err != LDAP_SUCCESS)
-		return faildirect (L, ldap_err2string (err));
+		return faildirect (L, ldap_err2string (err), err);
 
 	return 1;
 }
