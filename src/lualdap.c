@@ -391,7 +391,10 @@ static int table2strarray (lua_State *L, int tab, char *array[], int limit) {
 ** Fill in the struct timeval, according to the timeout parameter.
 */
 static struct timeval *get_timeout_param (lua_State *L, int idx, struct timeval *st) {
-	double t = numbertabparam (L, idx, "timeout", -1);
+	double t;
+	if (!lua_istable(L, idx))
+		return NULL;
+	t = numbertabparam (L, idx, "timeout", -1);
 	if(t < 0)
 		return NULL; /* No timeout, block */
 	st->tv_sec = (long)t;
