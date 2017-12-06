@@ -199,8 +199,8 @@ static double numbertabparam (lua_State *L, int idx, const char *name, double de
 ** Get the field named name as a boolean.
 ** The table MUST be at position 2.
 */
-static int booltabparam (lua_State *L, const char *name, int def) {
-	strgettable (L, 2, name);
+static int booltabparam (lua_State *L, int idx, const char *name, int def) {
+	strgettable (L, idx, name);
 	if (lua_isnil (L, -1))
 		return def;
 	else if (lua_isboolean (L, -1))
@@ -849,7 +849,7 @@ static int lualdap_search (lua_State *L) {
 	if (!get_attrs_param (L, attrs))
 		return 2;
 	/* get other parameters */
-	attrsonly = booltabparam (L, "attrsonly", 0);
+	attrsonly = booltabparam (L, 2, "attrsonly", 0);
 	base = (ldap_pchar_t) strtabparam (L, 2, "base", NULL);
 	filter = (ldap_pchar_t) strtabparam (L, 2, "filter", NULL);
 	scope = string2scope (L, strtabparam (L, 2, "scope", NULL));
