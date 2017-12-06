@@ -236,7 +236,7 @@ static BerValue *A_setbval (lua_State *L, attrs_data *a, const char *n) {
 		value_error (L, n);
 		return NULL;
 	}
-	a->bvals[a->bi].bv_len = lua_rawlen (L, -1);
+	a->bvals[a->bi].bv_len = lua_rawlen(L, -1);
 	a->bvals[a->bi].bv_val = (char *)lua_tostring (L, -1);
 	a->bi++;
 	return ret;
@@ -289,7 +289,7 @@ static BerValue **A_tab2val (lua_State *L, attrs_data *a, const char *name) {
 		A_setval (L, a, name);
 	else if (lua_istable (L, tab)) { /* list of strings */
 		int i;
-		int n = lua_rawlen (L, tab);
+		int n = lua_rawlen(L, tab);
 		for (i = 1; i <= n; i++) {
 			lua_rawgeti (L, tab, i); /* push table element */
 			A_setval (L, a, name);
@@ -540,7 +540,7 @@ static int lualdap_compare (lua_State *L) {
 	BerValue bvalue;
 	ldap_int_t rc, msgid;
 	bvalue.bv_val = (char *)luaL_checkstring (L, 4);
-	bvalue.bv_len = lua_rawlen (L, 4);
+	bvalue.bv_len = lua_rawlen(L, 4);
 	rc = ldap_compare_ext (conn->ld, dn, attr, &bvalue, NULL, NULL, &msgid);
 	return create_future (L, rc, 1, msgid, LDAP_RES_COMPARE);
 }
