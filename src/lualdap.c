@@ -102,10 +102,10 @@ static int faildirect (lua_State *L, const char *errmsg) {
 /*
 ** Get a connection object from the first stack position.
 */
-static conn_data *getconnection (lua_State *L) {
-	conn_data *conn = (conn_data *)luaL_checkudata (L, 1, LUALDAP_CONNECTION_METATABLE);
-	luaL_argcheck(L, conn!=NULL, 1, LUALDAP_PREFIX"LDAP connection expected");
-	luaL_argcheck(L, conn->ld, 1, LUALDAP_PREFIX"LDAP connection is closed");
+static conn_data *getconnection (lua_State *L, int idx) {
+	conn_data *conn = (conn_data *)luaL_checkudata (L, idx, LUALDAP_CONNECTION_METATABLE);
+	luaL_argcheck(L, conn!=NULL, idx, LUALDAP_PREFIX"LDAP connection expected");
+	luaL_argcheck(L, conn->ld, idx, LUALDAP_PREFIX"LDAP connection is closed");
 	return conn;
 }
 
@@ -489,7 +489,7 @@ static int lualdap_close (lua_State *L) {
 ** @return Boolean.
 */
 static int lualdap_bind_simple (lua_State *L) {
-	conn_data *conn = getconnection (L);
+	conn_data *conn = getconnection (L, 1);
 	ldap_pchar_t who = (ldap_pchar_t) luaL_checkstring (L, 2);
 	const char *password = luaL_checkstring (L, 3);
 	int err;
@@ -516,7 +516,7 @@ static int lualdap_bind_simple (lua_State *L) {
 ** @return Function to process the LDAP result.
 */
 static int lualdap_add (lua_State *L) {
-	conn_data *conn = getconnection (L);
+	conn_data *conn = getconnection (L, 1);
 	ldap_pchar_t dn = (ldap_pchar_t) luaL_checkstring (L, 2);
 	attrs_data attrs;
 	ldap_int_t rc, msgid;
@@ -538,7 +538,7 @@ static int lualdap_add (lua_State *L) {
 ** @return Function to process the LDAP result.
 */
 static int lualdap_compare (lua_State *L) {
-	conn_data *conn = getconnection (L);
+	conn_data *conn = getconnection (L, 1);
 	ldap_pchar_t dn = (ldap_pchar_t) luaL_checkstring (L, 2);
 	ldap_pchar_t attr = (ldap_pchar_t) luaL_checkstring (L, 3);
 	BerValue bvalue;
@@ -557,7 +557,7 @@ static int lualdap_compare (lua_State *L) {
 ** @return Boolean.
 */
 static int lualdap_delete (lua_State *L) {
-	conn_data *conn = getconnection (L);
+	conn_data *conn = getconnection (L, 1);
 	ldap_pchar_t dn = (ldap_pchar_t) luaL_checkstring (L, 2);
 	ldap_int_t rc, msgid;
 	rc = ldap_delete_ext (conn->ld, dn, NULL, NULL, &msgid);
@@ -592,7 +592,7 @@ static int op2code (const char *s) {
 ** @return True on success or nil, error message otherwise.
 */
 static int lualdap_modify (lua_State *L) {
-	conn_data *conn = getconnection (L);
+	conn_data *conn = getconnection (L, 1);
 	ldap_pchar_t dn = (ldap_pchar_t) luaL_checkstring (L, 2);
 	attrs_data attrs;
 	ldap_int_t rc, msgid;
@@ -619,7 +619,7 @@ static int lualdap_modify (lua_State *L) {
 ** Change the distinguished name of an entry.
 */
 static int lualdap_rename (lua_State *L) {
-	conn_data *conn = getconnection (L);
+	conn_data *conn = getconnection (L, 1);
 	ldap_pchar_t dn = (ldap_pchar_t) luaL_checkstring (L, 2);
 	ldap_pchar_t rdn = (ldap_pchar_t) luaL_checkstring (L, 3);
 	ldap_pchar_t par = (ldap_pchar_t) luaL_optlstring (L, 4, NULL, NULL);
@@ -830,7 +830,7 @@ static int get_attrs_param (lua_State *L, char *attrs[]) {
 ** The search result is defined as an upvalue of the iterator.
 */
 static int lualdap_search (lua_State *L) {
-	conn_data *conn = getconnection (L);
+	conn_data *conn = getconnection (L, 1);
 	ldap_pchar_t base;
 	ldap_pchar_t filter;
 	char *attrs[LUALDAP_MAX_ATTRS];
