@@ -508,19 +508,19 @@ static int lualdap_bind_simple (lua_State *L) {
 	conn_data *conn = getconnection (L, 1);
 	ldap_pchar_t who = (ldap_pchar_t) luaL_checkstring (L, 2);
 	const char *password = luaL_checkstring (L, 3);
-	int err;
+	ldap_int_t rc, msgid;
+	prepare_future(L, 1, LDAP_RES_BIND);
 #if defined(LDAP_API_FEATURE_X_OPENLDAP) && LDAP_API_FEATURE_X_OPENLDAP >= 20300
-	struct berval *cred = ber_bvstrdup(password);
-	err = ldap_sasl_bind_s (conn->ld, who, LDAP_SASL_SIMPLE, cred, NULL, NULL, NULL);
-	ber_bvfree(cred);
+	{
+		struct berval *cred = ber_bvstrdup(password);
+		rc = ldap_sasl_bind (conn->ld, who, LDAP_SASL_SIMPLE, cred, NULL, NULL, &msgid);
+		ber_bvfree(cred);
+	}
 #else
-	err = ldap_simple_bind_s (conn->ld, who, password);
+	msgid = ldap_simple_bind (conn->ld, who, password);
+	rc = msgid <= 0 ? msgid;
 #endif
-	if (err != LDAP_SUCCESS)
-		return faildirect (L, ldap_err2string (err), err);
-
-	lua_pushboolean (L, 1);
-	return 1;
+	return return_future(L, -1, rc, msgid);
 }
 
 
