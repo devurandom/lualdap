@@ -900,7 +900,7 @@ static int lualdap_search_tostring (lua_State *L) {
 ** Create a metatable.
 */
 static int lualdap_createmeta (lua_State *L) {
-	const luaL_Reg methods[] = {
+	static const luaL_Reg connection_methods[] = {
 		{"close", lualdap_close},
 		{"pollfd", lualdap_pollfd},
 		{"bind_simple", lualdap_bind_simple},
@@ -917,7 +917,7 @@ static int lualdap_createmeta (lua_State *L) {
 		return 0;
 
 	/* define methods */
-	luaL_setfuncs(L, methods, 0);
+	luaL_setfuncs(L, connection_methods, 0);
 
 	/* define metamethods */
 	lua_pushliteral (L, "__gc");
