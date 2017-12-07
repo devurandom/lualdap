@@ -844,7 +844,7 @@ static int lualdap_search (lua_State *L) {
 ** This function is used by `tostring'.
 */
 static int lualdap_conn_tostring (lua_State *L) {
-	conn_data *conn = (conn_data *)lua_touserdata (L, 1);
+	conn_data *conn = luaL_checkudata(L, 1, LUALDAP_CONNECTION_METATABLE);
 	if (conn->ld == NULL)
 		lua_pushfstring (L, "%s (closed)", LUALDAP_CONNECTION_METATABLE);
 	else
@@ -858,7 +858,7 @@ static int lualdap_conn_tostring (lua_State *L) {
 ** This function is used by `tostring'.
 */
 static int lualdap_search_tostring (lua_State *L) {
-	search_data *search = (search_data *)lua_touserdata (L, 1);
+	search_data *search = luaL_checkudata(L, 1, LUALDAP_SEARCH_METATABLE);
 	luaL_argcheck (L,search->conn!=LUA_NOREF,1,LUALDAP_PREFIX"LDAP search is closed");
 	if (search->conn == LUA_NOREF)
 		lua_pushfstring (L, "%s (closed)", LUALDAP_SEARCH_METATABLE);
