@@ -39,6 +39,7 @@ typedef const char * ldap_pchar_t;
 #define LUALDAP_TABLENAME "lualdap"
 #define LUALDAP_CONNECTION_METATABLE "LuaLDAP connection"
 #define LUALDAP_SEARCH_METATABLE "LuaLDAP search"
+#define LUALDAP_FUTURE_METATABLE "LuaLDAP future"
 
 #define LUALDAP_MOD_ADD (LDAP_MOD_ADD | LDAP_MOD_BVALUES)
 #define LUALDAP_MOD_DEL (LDAP_MOD_DELETE | LDAP_MOD_BVALUES)
@@ -74,6 +75,11 @@ typedef struct {
 	int      msgid;
 } search_data;
 
+/* LDAP future context information */
+typedef struct {
+	int      msgid;
+	int      code;
+} future_data;
 
 /* LDAP attribute modification structure */
 typedef struct {
@@ -375,21 +381,25 @@ static struct timeval *get_timeout_param (lua_State *L, int idx, struct timeval 
 	return st;
 }
 
+
 /*
 ** Get the result message of an operation.
-** #1 upvalue == connection
-** #2 upvalue == msgid
-** #3 upvalue == result code of the message (ADD, DEL etc.) to be received.
+** @param #1 LDAP connection.
 */
-static int result_message (lua_State *L) {
+static int lualdap_result (lua_State *L) {
 	struct timeval timeout;
 	LDAPMessage *res;
 	int rc;
-	conn_data *conn = (conn_data *)lua_touserdata (L, lua_upvalueindex (1));
-	int msgid = (int)lua_tonumber (L, lua_upvalueindex (2));
-	/*int res_code = (int)lua_tonumber (L, lua_upvalueindex (3));*/
+	conn_data *conn;
+	int msgid;
 
+	future_data *future = luaL_checkudata(L, 1, LUALDAP_FUTURE_METATABLE);
+	lua_getuservalue(L, 1);
+	lua_getfield(L, -1, "connection");
+	conn = (conn_data*)lua_touserdata(L, -1);
 	luaL_argcheck (L, conn->ld, 1, LUALDAP_PREFIX"LDAP connection is closed");
+	msgid = future->msgid;
+
 	rc = ldap_result (conn->ld, msgid, LDAP_MSG_ONE, get_timeout_param (L, 1, &timeout), &res);
 	if (rc == 0)
 		return faildirect (L, LUALDAP_PREFIX"result timeout expired", LDAP_TIMEOUT);
@@ -429,17 +439,27 @@ static int result_message (lua_State *L) {
 	}
 }
 
+static future_data* prepare_future(lua_State *L, int conn_idx, int code) {
+	future_data *future = lua_newuserdata(L, sizeof(future_data*));
+	lua_createtable(L, 0, 1);
+	lua_pushvalue(L, conn_idx);
+	lua_setfield(L, -2, "connection");
+	lua_setuservalue(L, -2);
+	luaL_setmetatable(L, LUALDAP_FUTURE_METATABLE);
+	future->code = code;
+	return future;
+}
 
 /*
 ** Push a function to process the LDAP result.
 */
-static int create_future (lua_State *L, ldap_int_t rc, int conn, ldap_int_t msgid, int code) {
+static int return_future(lua_State *L, int future_idx, ldap_int_t rc, ldap_int_t msgid) {
+	future_data *future;
 	if (rc != LDAP_SUCCESS)
 		return faildirect (L, ldap_err2string (rc), rc);
-	lua_pushvalue (L, conn); /* push connection as #1 upvalue */
-	lua_pushnumber (L, msgid); /* push msgid as #2 upvalue */
-	lua_pushnumber (L, code); /* push code as #3 upvalue */
-	lua_pushcclosure (L, result_message, 3);
+	future = lua_touserdata(L, future_idx);
+	future->msgid = msgid;
+	lua_pushvalue(L, future_idx);
 	return 1;
 }
 
@@ -520,8 +540,9 @@ static int lualdap_add (lua_State *L) {
 	if (lua_istable (L, 3))
 		A_tab2mod (L, &attrs, 3, LUALDAP_MOD_ADD);
 	A_lastattr (L, &attrs);
+	prepare_future(L, 1, LDAP_RES_ADD);
 	rc = ldap_add_ext (conn->ld, dn, attrs.attrs, NULL, NULL, &msgid);
-	return create_future (L, rc, 1, msgid, LDAP_RES_ADD);
+	return return_future(L, -1, rc, msgid);
 }
 
 
@@ -541,8 +562,9 @@ static int lualdap_compare (lua_State *L) {
 	ldap_int_t rc, msgid;
 	bvalue.bv_val = (char *)luaL_checkstring (L, 4);
 	bvalue.bv_len = lua_rawlen(L, 4);
+	prepare_future(L, 1, LDAP_RES_COMPARE);
 	rc = ldap_compare_ext (conn->ld, dn, attr, &bvalue, NULL, NULL, &msgid);
-	return create_future (L, rc, 1, msgid, LDAP_RES_COMPARE);
+	return return_future(L, -1, rc, msgid);
 }
 
 
@@ -556,8 +578,9 @@ static int lualdap_delete (lua_State *L) {
 	conn_data *conn = getconnection (L, 1);
 	ldap_pchar_t dn = (ldap_pchar_t) luaL_checkstring (L, 2);
 	ldap_int_t rc, msgid;
+	prepare_future(L, 1, LDAP_RES_DELETE);
 	rc = ldap_delete_ext (conn->ld, dn, NULL, NULL, &msgid);
-	return create_future (L, rc, 1, msgid, LDAP_RES_DELETE);
+	return return_future(L, -1, rc, msgid);
 }
 
 
@@ -606,8 +629,9 @@ static int lualdap_modify (lua_State *L) {
 		param++;
 	}
 	A_lastattr (L, &attrs);
+	prepare_future(L, 1, LDAP_RES_MODIFY);
 	rc = ldap_modify_ext (conn->ld, dn, attrs.attrs, NULL, NULL, &msgid);
-	return create_future (L, rc, 1, msgid, LDAP_RES_MODIFY);
+	return return_future(L, -1, rc, msgid);
 }
 
 
@@ -620,9 +644,10 @@ static int lualdap_rename (lua_State *L) {
 	ldap_pchar_t rdn = (ldap_pchar_t) luaL_checkstring (L, 3);
 	ldap_pchar_t par = (ldap_pchar_t) luaL_optlstring (L, 4, NULL, NULL);
 	const int del = luaL_optnumber (L, 5, 0);
-	ldap_int_t msgid;
-	ldap_int_t rc = ldap_rename (conn->ld, dn, rdn, par, del, NULL, NULL, &msgid);
-	return create_future (L, rc, 1, msgid, LDAP_RES_MODDN);
+	ldap_int_t msgid, rc;
+	prepare_future(L, 1, LDAP_RES_MODDN);
+	rc = ldap_rename (conn->ld, dn, rdn, par, del, NULL, NULL, &msgid);
+	return return_future(L, -1, rc, msgid);
 }
 
 
@@ -912,6 +937,10 @@ static int lualdap_createmeta (lua_State *L) {
 		{"search", lualdap_search},
 		{NULL, NULL}
 	};
+	static const luaL_Reg future_methods[] = {
+		{"result", lualdap_result},
+		{NULL, NULL}
+	};
 
 	if (!luaL_newmetatable (L, LUALDAP_CONNECTION_METATABLE))
 		return 0;
@@ -946,6 +975,19 @@ static int lualdap_createmeta (lua_State *L) {
 	lua_pushliteral (L, "__tostring");
 	lua_pushcclosure (L, lualdap_search_tostring, 1);
 	lua_settable (L, -3);
+
+	lua_pushliteral (L, "__metatable");
+	lua_pushliteral(L,LUALDAP_PREFIX"you're not allowed to get this metatable");
+	lua_settable (L, -3);
+
+	if (!luaL_newmetatable (L, LUALDAP_FUTURE_METATABLE))
+		return 0;
+
+	luaL_newlib(L, future_methods);
+	lua_setfield(L, -2, "__index");
+
+	lua_pushcfunction(L, lualdap_result);
+	lua_setfield(L, -2, "__call");
 
 	lua_pushliteral (L, "__metatable");
 	lua_pushliteral(L,LUALDAP_PREFIX"you're not allowed to get this metatable");
