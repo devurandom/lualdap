@@ -385,7 +385,7 @@ static int table2strarray (lua_State *L, int tab, char *array[], int limit) {
 			}
 		}
 		array[n] = NULL;
-	} else 
+	} else
 		return luaL_error (L, LUALDAP_PREFIX"bad argument #%d (table or string expected, got %s)", tab, lua_typename (L, lua_type (L, tab)));
 	return 0;
 }
@@ -517,7 +517,7 @@ static int lualdap_bind_simple (lua_State *L) {
 #endif
 	if (err != LDAP_SUCCESS)
 		return faildirect (L, ldap_err2string (err));
-	
+
 	lua_pushboolean (L, 1);
 	return 1;
 }
@@ -984,7 +984,7 @@ static int lualdap_initialize (lua_State *L) {
 	err = ldap_initialize (&conn->ld, uri);
 	if (err != LDAP_SUCCESS)
 		return faildirect(L, ldap_err2string(err));
-	
+
 	/* Set protocol version */
 	conn->version = LDAP_VERSION3;
 	if (ldap_set_option (conn->ld, LDAP_OPT_PROTOCOL_VERSION, &conn->version)
@@ -1019,12 +1019,16 @@ static int lualdap_open_simple (lua_State *L) {
 	lualdap_setmeta (L, LUALDAP_CONNECTION_METATABLE);
 	conn->version = 0;
 #if defined(LDAP_API_FEATURE_X_OPENLDAP) && LDAP_API_FEATURE_X_OPENLDAP >= 20300
-	host_with_schema = malloc(strlen(host) + 8);
-	strcpy(host_with_schema, "ldap://");
-	strcat(host_with_schema, host);
-	err = ldap_initialize(&conn->ld, host_with_schema);
-	free(host_with_schema);
-	host_with_schema = NULL;
+    if (strstr(host, "ldap://") != NULL || strstr(host, "ldaps://") != NULL) {
+        err = ldap_initialize(&conn->ld, host);
+    } else {
+        host_with_schema = malloc(strlen(host) + 8);
+        strcpy(host_with_schema, "ldap://");
+        strcat(host_with_schema, host);
+        err = ldap_initialize(&conn->ld, host_with_schema);
+        free(host_with_schema);
+        host_with_schema = NULL;
+    }
 	if (err != LDAP_SUCCESS)
 #else
 	conn->ld = ldap_init (host, LDAP_PORT);
